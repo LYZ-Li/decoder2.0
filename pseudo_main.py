@@ -17,6 +17,9 @@ lib.EthernetScanner_Connect.restype = ctypes.c_void_p
 lib.EthernetScanner_Disconnect.restype = ctypes.c_void_p
 lib.EthernetScanner_Disconnect.argtypes = [ctypes.c_void_p]
 
+lib.EthernetScanner_WriteData.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+lib.EthernetScanner_WriteData.restype = ctypes.c_int
+
 lib.EthernetScanner_GetXZIExtended.restype = ctypes.c_int
 lib.EthernetScanner_GetXZIExtended.argtypes = [
     ctypes.c_void_p,  # void* pEthernetScanner
@@ -56,6 +59,17 @@ async def saveData(savePath,x,z,i,w):
         for x_val, z_val, i_val, w_val in zip(x, z, i, w):
             file.write(f"{x_val:.4f},{z_val:.4f},{i_val}\n")#,{w_val}\n")
 
+def send_to_wenglor(pEthernetScanner, ascii_command):
+    
+    command = ascii_command.encode('utf-8')  # Convert ASCII command to bytes
+    command_length = len(command)
+    result = lib.EthernetScanner_WriteData(pEthernetScanner, command, command_length)
+
+    # Check the result
+    if result == command_length:
+        return True  # Invalid handle
+    else:
+        return False  # Command sent successfully
 
 async def main():
     # initial pEthernetScanner
