@@ -27,8 +27,8 @@ services:
     depends_on:
       - zookeeper
     restart: always
-    ports:
-      - "9092:9092"
+    #ports:
+    #  - "9092:9092"
 
   wenglor_to_kafka:
     build:
