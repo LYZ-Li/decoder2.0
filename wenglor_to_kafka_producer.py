@@ -1,5 +1,5 @@
 import ctypes
-import asyncio
+#import asyncio
 from kafka.producer import KafkaProducer
 import os, json, pytz
 import time
@@ -12,6 +12,7 @@ import socket
 
 # Load the shared library
 lib = ctypes.CDLL("EthernetScanner/libEthernetScanner.so")  # Replace "your_library_name.so" with the actual name of your library
+#lib = ctypes.CDLL("libEthernetScanner.so")  
 
 # Define the argument and return types for the function
 lib.EthernetScanner_Connect.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
@@ -52,7 +53,7 @@ ucBufferRaw = ctypes.c_ubyte()
 iBufferRaw = 0  
 iPicCnt = ctypes.c_int()
 
-stopRequested = False
+trigger = False
 Queue = queue.Queue()
 
 #######################################___________sensor_____________#########################
@@ -63,7 +64,7 @@ def connect_to_sensor(ip, port, timeout):
         chPort = port.encode("utf-8")
         handle = lib.EthernetScanner_Connect(chIP, chPort, timeout)
         if handle is not None:
-            print("Connection successful. Handle:", handle)
+            print("Sensor connected successfully. Handle:", handle)
             return handle
         else:
             raise Exception("Connection failed.")
@@ -80,10 +81,12 @@ def init_wenglor(pScanner):
 
 # def connect to pseudo master
 def connect_to_master():
-    pass
+    master = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    master.connect((os.environ.get("pseudo_main_ADDRESS",'127.0.0.1'), os.environ.get("pseudo_main_PORT",9999)))
+    return master
 
 
-async def saveData(savePath,x,z,i,w):
+def saveData(savePath,x,z,i,w):
     timestamp_ms = int(time.time() * 1000)
 
     with open(savePath, "a") as file:
@@ -92,7 +95,7 @@ async def saveData(savePath,x,z,i,w):
             file.write(f"{x_val:.4f},{z_val:.4f},{i_val}\n")#,{w_val}\n")
 
 def write_to_wenglor(pScanner, ascii_command):   
-    command = ascii_command.encode('utf-8')  # Convert ASCII command to bytes
+    command = ascii_command#.encode('utf-8')  # Convert ASCII command to bytes
     command_length = len(command)
     result = lib.EthernetScanner_WriteData(pScanner, command, command_length)
     # Check the result
@@ -103,7 +106,7 @@ def write_to_wenglor(pScanner, ascii_command):
 
 def decoder(pScanner, savePath):
     write_to_wenglor(pScanner,b'SetAcquisitionStart')
-    while not stopRequested:
+    while trigger:
         result = lib.EthernetScanner_GetXZIExtended(
                 pScanner, pdoX, pdoZ, piIntensity, piSignalWidth,
                 iBuffer, puiEncoder, pucUSRIO, dwTimeOut, ucBufferRaw, iBufferRaw, iPicCnt
@@ -119,7 +122,7 @@ class SubscriptionHandler:
     def __init__(self, producer):
         self.producer=producer
 
-    async def pack_send(self, x,z,i,w):
+    def pack_send(self, x,z,i,w):
         xval = [value for value in x]
         zval = [value for value in z]
         ival = [value for value in i]
@@ -133,20 +136,21 @@ class SubscriptionHandler:
         except Exception as e:
             print(f"Failed to send message: {e}")
 def sendKafka(producer):
-    while not stopRequested:
+    while trigger:
         if not Queue.empty():
             x,z,i,w = Queue.get()
             producer.pack_send(x,z,i,w)
 
 ########################################__________main____________#################################
-async def main():
+def main():
     try:
         # connect to master
         master = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        master.connect((os.environ.get("pseudo_main_ADDRESS"), os.environ.get("pseudo_main_PORT")))
+        master.connect((os.environ.get("pseudo_main_ADDRESS",'127.0.0.1'), os.environ.get("pseudo_main_PORT",9999)))
+        print('TCP connected')
         # connect to sensor
         pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
-        
+        init_wenglor(pEthernetScanner)
         # connect to kafka
         _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
                                client_id='wenglor_to_kafka_producer', 
@@ -157,21 +161,41 @@ async def main():
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
 
+        last_trigger = None
+        threads=[]
         while True:
-            stopRequested = bool(master.recv(1024).decode('utf-8'))
-            # filename
-            current_time = datetime.now().strftime("%Y%m%d%H%M")
-            savePath = f"{folder_name}/ScanData{current_time}.txt"
-            if not stopRequested:
+            global trigger 
+            trigger = bool(master.recv(1024).decode('utf-8'))
+            print(f'received{trigger}')
+            if last_trigger == trigger:
+                continue
+            elif last_trigger == None and trigger == False:
+                last_trigger = trigger
+                continue
+            else:
+                last_trigger = trigger
+                
+            if trigger:
+                # filename
+                current_time = datetime.now().strftime("%Y%m%d%H%M")
+                savePath = f"{folder_name}/ScanData{current_time}.txt"
+
                 thread_decoder = threading.Thread(target=decoder,args=(pEthernetScanner, savePath, ))
                 thread_sendKafka = threading.Thread(target=sendKafka,args=(producer, ))
+                threads = [thread_decoder, thread_sendKafka]
+                for thread in threads:
+                    thread.start()
             else:
-                thread_decoder.join()
-                thread_sendKafka.join()
+                last_trigger == None
+                print('Stopping data acquisition...')
+                for thread in threads:
+                    if thread in locals() and thread.is_alive():
+                        thread.join()
+                print('Data acquisition stopped.')
                 write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
     finally:
         write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
         lib.EthernetScanner_Disconnect(pEthernetScanner)
         print("disconnected")
 if __name__=='__main__':
-	asyncio.run(main())
+	main()
