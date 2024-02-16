@@ -106,7 +106,7 @@ def write_to_wenglor(pScanner, ascii_command):
 
 def decoder(pScanner, savePath):
     write_to_wenglor(pScanner,b'SetAcquisitionStart')
-    while trigger:
+    while trigger== 'True':
         result = lib.EthernetScanner_GetXZIExtended(
                 pScanner, pdoX, pdoZ, piIntensity, piSignalWidth,
                 iBuffer, puiEncoder, pucUSRIO, dwTimeOut, ucBufferRaw, iBufferRaw, iPicCnt
@@ -136,7 +136,7 @@ class SubscriptionHandler:
         except Exception as e:
             print(f"Failed to send message: {e}")
 def sendKafka(producer):
-    while trigger:
+    while trigger== 'True':
         if not Queue.empty():
             x,z,i,w = Queue.get()
             producer.pack_send(x,z,i,w)
@@ -165,17 +165,17 @@ def main():
         threads=[]
         while True:
             global trigger 
-            trigger = bool(master.recv(1024).decode('utf-8'))
+            trigger = master.recv(1024).decode('utf-8')
             print(f'received{trigger}')
             if last_trigger == trigger:
                 continue
-            elif last_trigger == None and trigger == False:
+            elif last_trigger == None and trigger == 'False':
                 last_trigger = trigger
                 continue
             else:
                 last_trigger = trigger
                 
-            if trigger:
+            if trigger== 'True':
                 # filename
                 current_time = datetime.now().strftime("%Y%m%d%H%M")
                 savePath = f"{folder_name}/ScanData{current_time}.txt"
@@ -185,7 +185,7 @@ def main():
                 threads = [thread_decoder, thread_sendKafka]
                 for thread in threads:
                     thread.start()
-            else:
+            elif trigger == 'False':
                 last_trigger == None
                 print('Stopping data acquisition...')
                 for thread in threads:
