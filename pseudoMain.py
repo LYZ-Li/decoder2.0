@@ -1,106 +1,62 @@
-# import time
-# import socket
-# import os
+import sys
+from paho.mqtt import client as mqtt_client
 
-# trigger = False
+broker = 'localhost'
+port = 1883
+topic = "/python/mqtt"
+client_id = f'pesudo-main'
 
-# def wenglor(tcp, trigger):
-#     tcp.send(str(trigger).encode('utf-8'))
+def connect_mqtt():
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+        else:
+            print("Failed to connect, return code %d\n", rc)
 
-# def main():
-#     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     server.bind(('0.0.0.0', os.environ.get("MQTT_PORT",9999)))
-    
-#     server.listen(1)
-#     print('waiting for connection ...')
-#     while True:
-#         sock, _ = server.accept()
+    client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1,client_id)
+    client.on_connect = on_connect
+    client.connect(broker, port)
+    return client
 
-#         trigger = True
-#         wenglor(sock, trigger)
-#         print('sent start')
-#         time.sleep(5)
-#         trigger = False
-#         wenglor(sock, trigger)
-#         print('sent stop')
-#         while True:
-#             pass
+def publish(client,msg):
+    result = client.publish(topic, msg)
+    # result: [0, 1]
+    status = result[0]
+    if status == 0:
+        print(f"Send `{msg}` to topic `{topic}`")
+    else:
+        print(f"Failed to send message to topic {topic}")
 
-# import socket
-# import time
-# def tcp_server(host, port):
-#     # 创建TCP/IP套接字
-#     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-#     # 绑定到指定的端口
-#     server_socket.bind((host, port))
-    
-#     # 开始监听传入的连接
-#     server_socket.listen(5)
-    
-#     print(f"Listening for connections on {host}:{port}")
-    
-#     while True:
-#         # 等待客户端连接
-#         client_socket, client_address = server_socket.accept()
-        
-#         try:
-#             print(f"Connection from {client_address}")
-            
-#             # 发送响应
-#             response = "True"
-#             client_socket.sendall(response.encode('utf-8'))
-#             print('sent True')
-#             time.sleep(5000)
-#             response = "False"
-#             client_socket.sendall(response.encode('utf-8'))
-#             print('sent False')
-#             time.sleep(5)
+    # msg_count = 0
+    # while True:
+    #     time.sleep(1)
+    #     msg = f"messages: {msg_count}"
+    #     result = client.publish(topic, msg_count)
+    #     # result: [0, 1]
+    #     status = result[0]
+    #     if status == 0:
+    #         print(f"Send `{msg}` to topic `{topic}`")
+    #     else:
+    #         print(f"Failed to send message to topic {topic}")
+    #     msg_count += 1
 
-#         finally:
-#             # 关闭连接
-#             client_socket.close()
 
-# if __name__ == "__main__":
-#     HOST = '0.0.0.0'  # 监听所有网络接口
-#     PORT = 9999       # 监听的端口号
-#     tcp_server(HOST, PORT)
-
-import socket
-
-def tcp_server(host, port):
-    # 创建TCP/IP套接字
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    # 绑定到指定的端口
-    server_socket.bind((host, port))
-    
-    # 开始监听传入的连接
-    server_socket.listen(5)
-    
-    print(f"Listening for connections on {host}:{port}")
-    
+def run():
+    client = connect_mqtt()
+    client.loop_start()
     while True:
-        # 等待客户端连接
-        client_socket, client_address = server_socket.accept()
-        
         try:
-            print(f"Connection from {client_address}")
-            
-            while True:
+            user_input = input("Enter 0 for 'False' or 1 for 'True': ")
+            if user_input == '0':
+                publish(client, "False")
+            elif user_input == '1':
+                publish(client, "True")
+            else:
+                print("Invalid input! Please enter 0 or 1.")
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            client.disconnect()
+            sys.exit(0)
 
-                # 从键盘获取消息
-                message = input("Enter your message: ")
-                
-                # 发送响应
-                client_socket.sendall(message.encode('utf-8'))
-                print('message sent!!')
-
-        finally:
-            # 关闭连接
-            client_socket.close()
-
-if __name__ == "__main__":
-    HOST = '0.0.0.0'  # 监听所有网络接口
-    PORT = 9999       # 监听的端口号
-    tcp_server(HOST, PORT)
+if __name__ == '__main__':
+    run()

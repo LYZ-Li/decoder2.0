@@ -47,7 +47,7 @@ services:
       context: .
       #context: docker/.
       dockerfile: Dockerfile-pseudoMain
-    restart: 'always'
+    #restart: 'always'
     env_file:
       - environment.env
       - local_network.env
