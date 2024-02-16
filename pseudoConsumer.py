@@ -3,8 +3,8 @@ import json,os
 
 
 # Kafka broker address and topic name
-#brokers = os.environ.get('KAFKA_BROKER')
-brokers = 'localhost'
+brokers = os.environ.get('KAFKA_BROKER')
+#brokers = 'localhost'
 topic = 'wenglor_to_kafka'
 
 # Create a Kafka consumer

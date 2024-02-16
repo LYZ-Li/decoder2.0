@@ -13,8 +13,8 @@ import traceback
 ##################################_____________C++ interface_______________##############################
 
 # Load the shared library
-lib = ctypes.CDLL("EthernetScanner/libEthernetScanner.so")  # Replace "your_library_name.so" with the actual name of your library
-#lib = ctypes.CDLL("/app/libEthernetScanner.so")  
+#lib = ctypes.CDLL("EthernetScanner/libEthernetScanner.so")  # Replace "your_library_name.so" with the actual name of your library
+lib = ctypes.CDLL("/app/libEthernetScanner.so")  
 
 # Define the argument and return types for the function
 lib.EthernetScanner_Connect.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
@@ -145,8 +145,8 @@ def sendKafka(producer):
 
 ########################################__________main____________#################################
 ## Mosquitto 
-#mqttbroker = "mosquitto"
-mqttbroker = "localhost"
+#mqttbroker = "localhost"
+mqttbroker = "mosquitto"
 mqttport = 1883
 mqttTopic = "wenglor_trigger"
 
@@ -228,5 +228,5 @@ if __name__=='__main__':
     folder_name = "profileData"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
-    #mqttListening(os.environ.get("MQTT_IP",mqttbroker),os.environ.get("MQTT_PORT",mqttport))
-    mqttListening(mqttbroker,mqttport)
+    mqttListening("mosquitto",mqttport)
+    #mqttListening(mqttbroker,mqttport)

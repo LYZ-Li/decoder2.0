@@ -1,7 +1,8 @@
-import sys
+import sys, time
 from paho.mqtt import client as mqtt_client
 
-broker = 'localhost'
+#broker = 'localhost'
+broker = 'mosquitto'
 port = 1883
 topic = "/python/mqtt"
 client_id = f'pesudo-main'
@@ -27,32 +28,40 @@ def publish(client,msg):
     else:
         print(f"Failed to send message to topic {topic}")
 
-    # msg_count = 0
     # while True:
-    #     time.sleep(1)
-    #     msg = f"messages: {msg_count}"
-    #     result = client.publish(topic, msg_count)
+    #     time.sleep(10)
+    #     msg = f"True"
+    #     result = client.publish(topic, msg)
     #     # result: [0, 1]
     #     status = result[0]
     #     if status == 0:
     #         print(f"Send `{msg}` to topic `{topic}`")
     #     else:
     #         print(f"Failed to send message to topic {topic}")
-    #     msg_count += 1
+    #     time.sleep(10)
+    #     msg = f"False"
+    #     result = client.publish(topic, msg)
+    #     # result: [0, 1]
+    #     status = result[0]
+    #     if status == 0:
+    #         print(f"Send `{msg}` to topic `{topic}`")
+    #     else:
+    #         print(f"Failed to send message to topic {topic}")
+
 
 
 def run():
     client = connect_mqtt()
-    client.loop_start()
+    #client.loop_start()
     while True:
         try:
-            user_input = input("Enter 0 for 'False' or 1 for 'True': ")
-            if user_input == '0':
-                publish(client, "False")
-            elif user_input == '1':
-                publish(client, "True")
-            else:
-                print("Invalid input! Please enter 0 or 1.")
+            time.sleep(10)
+            msg = f"True"
+            client.publish(topic, msg)
+
+            time.sleep(10)
+            msg = f"False"
+            client.publish(topic, msg)
         except KeyboardInterrupt:
             print("\nExiting...")
             client.disconnect()

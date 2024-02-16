@@ -30,6 +30,20 @@ services:
     #ports:
     #  - "9092:9092"
 
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    networks:
+      - testDocker-net
+    environment:
+      - ALLOW_ANONYMOUS=true
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    env_file:
+      - environment.env
+    #  - ../secrets.env
+      - local_network.env
+    restart: always
+
   wenglor_to_kafka:
     build:
       #context: docker/.
