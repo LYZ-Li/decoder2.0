@@ -7,6 +7,7 @@ from datetime import datetime
 import threading
 import queue
 import socket
+import paho.mqtt.client as mqtt
 
 ##################################_____________C++ interface_______________##############################
 
@@ -138,40 +139,121 @@ def sendKafka(producer):
             x,z,i,w = Queue.get()
             producer.pack_send(x,z,i,w)
 
-########################################__________main____________#################################
-async def main():
-    try:
-        # connect to master
-        master = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        master.connect((os.environ.get("pseudo_main_ADDRESS"), os.environ.get("pseudo_main_PORT")))
-        # connect to sensor
-        pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
+########################################__________main______MQTT______#################################
+## Mosquitto 
+mqttbroker = "localhost"
+mqttport = 1883
+mqttTopic = "wenglor_trigger"
+
+thread_stop = threading.Event()
+
+#define connection callback
+def on_connect(client,userdata,flags,rc):
+    #print('Connected')
+    client.subscribe(mqttTopic) # subscribe
+    
+def on_disconnect(client, userdata,rc):
+    client.reconnect()
+
+def on_message(client, userdata, message):
+    global thread_stop
+
+    receivedMessage = message.payload.decode('utf-8')
+    print('')
+    print('Received MQTT message:', receivedMessage)
+
+    if receivedMessage == "TRUE":
+        print('Starting data acquisition...')
+        thread_stop.clear() 
+        thread_decoder = threading.Thread(target=decoder,args=(pEthernetScanner, savePath, ))
+        thread_sendKafka = threading.Thread(target=sendKafka,args=(producer, ))
+        threads =  [thread_decoder,thread_sendKafka]
+        for thread in threads:
+            thread.start()
+
+    elif receivedMessage == "FALSE":
+        print('Stopping data acquisition...')
+        thread_stop.set()
+        for thread in threads:
+            if thread in locals() and thread.is_alive():
+                thread.join()
+                print('Data acquisition stopped.')
+
+def mqttListening(mqttbroker,mqttport):
+    # initialize mosquitto client
+    client= mqtt.Client("client-001",clean_session=False)  
+    
+    #define on message reactions and reconnection propertys 
+    client.on_message=on_message # define callback function, when message is received
+    client.on_connect=on_connect
+    client.on_disconnect=on_disconnect
+    client.reconnect_delay_set(min_delay=0.01,max_delay =10)
+
+    # connect mosquitto client
+    client.connect(mqttbroker,mqttport,keepalive=86400) # 86400s = 24h
+    client.loop_forever(retry_first_connection=True)
+
+
+if __name__=='__main__':
+    # connect to sensor
+    pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
+    
+    # connect to kafka
+    _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
+                            client_id='wenglor_to_kafka_producer', 
+                            value_serializer=lambda m:json.dumps(m).encode('utf-8'))
+    producer = SubscriptionHandler(_producer)
+
+    folder_name = "profileData"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    mqttListening(os.environ.get("MQTT_IP",mqttbroker),os.environ.get("MQTT_PORT",mqttport))
+
+
+########################################__________main______TCP______#################################
+# async def main():
+#     try:
+#         # connect to master
+#         master = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         master.connect((os.environ.get("pseudo_main_ADDRESS"), os.environ.get("pseudo_main_PORT")))
+#         # connect to sensor
+#         pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
         
-        # connect to kafka
-        _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
-                               client_id='wenglor_to_kafka_producer', 
-                               value_serializer=lambda m:json.dumps(m).encode('utf-8'))
-        producer = SubscriptionHandler(_producer)
+#         # connect to kafka
+#         _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
+#                                client_id='wenglor_to_kafka_producer', 
+#                                value_serializer=lambda m:json.dumps(m).encode('utf-8'))
+#         producer = SubscriptionHandler(_producer)
 
-        folder_name = "profileData"
-        if not os.path.exists(folder_name):
-            os.makedirs(folder_name)
+#         folder_name = "profileData"
+#         if not os.path.exists(folder_name):
+#             os.makedirs(folder_name)
 
-        while True:
-            stopRequested = bool(master.recv(1024).decode('utf-8'))
-            # filename
-            current_time = datetime.now().strftime("%Y%m%d%H%M")
-            savePath = f"{folder_name}/ScanData{current_time}.txt"
-            if not stopRequested:
-                thread_decoder = threading.Thread(target=decoder,args=(pEthernetScanner, savePath, ))
-                thread_sendKafka = threading.Thread(target=sendKafka,args=(producer, ))
-            else:
-                thread_decoder.join()
-                thread_sendKafka.join()
-                write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
-    finally:
-        write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
-        lib.EthernetScanner_Disconnect(pEthernetScanner)
-        print("disconnected")
+#         last_stop_value = None
+#         while True:
+#             stopRequested = bool(master.recv(1024).decode('utf-8'))
+#             if last_stop_value == stopRequested:
+#                 continue
+#             else:
+#                 last_stop_value = stopRequested
+            
+#             if not stopRequested:
+#                 # filename
+#                 current_time = datetime.now().strftime("%Y%m%d%H%M")
+#                 savePath = f"{folder_name}/ScanData{current_time}.txt"
+                
+#                 thread_decoder = threading.Thread(target=decoder,args=(pEthernetScanner, savePath, ))
+#                 thread_sendKafka = threading.Thread(target=sendKafka,args=(producer, ))
+#                 thread_decoder.start()
+#                 thread_sendKafka.start()
+#             else:
+#                 thread_decoder.join()
+#                 thread_sendKafka.join()
+#                 write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
+
+#     finally:
+#         write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
+#         lib.EthernetScanner_Disconnect(pEthernetScanner)
+#         print("disconnected")
 if __name__=='__main__':
 	asyncio.run(main())
