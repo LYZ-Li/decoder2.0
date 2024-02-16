@@ -1,0 +1,70 @@
+version: "3"
+
+services:
+  zookeeper:
+    image: 'bitnami/zookeeper:latest'
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - testDocker-net
+    restart: always
+
+  kafka:
+    image: 'bitnami/kafka:latest'
+    environment:
+      - TZ=Europe/Berlin
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LOG_RETENTION_MS=50000
+      - KAFKA_CFG_LOG_CLEANUP_POLICY=delete
+      - KAFKA_CFG_LOG_RETENTION_CHECK_INTERVAL_MS=300000
+      # - KAFKA_CFG_LOG_DIRS=/tmp
+    networks:
+      - testDocker-net
+    depends_on:
+      - zookeeper
+    restart: always
+    ports:
+      - "9092:9092"
+
+  wenglor_to_kafka:
+    build:
+      #context: docker/.
+      context: .
+      dockerfile: Dockerfile-wenglor
+    restart: 'always'
+    env_file:
+      - environment.env
+    #  - ../secrets.env
+      - local_network.env
+    networks:
+      - testDocker-net
+  pseudo_main:
+    build:
+      context: .
+      #context: docker/.
+      dockerfile: Dockerfile-pseudoMain
+    restart: 'always'
+    env_file:
+      - environment.env
+      - local_network.env
+    networks:
+      - testDocker-net
+  pseudo_consumer:
+    build:
+      context: .
+      #context: docker/.
+      dockerfile: Dockerfile-pseudoConsumer
+    restart: 'always'
+    env_file:
+      - environment.env
+      - local_network.env
+    networks:
+      - testDocker-net
+
+networks:
+  testDocker-net:
+    driver: bridge

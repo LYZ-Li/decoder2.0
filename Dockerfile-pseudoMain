@@ -7,11 +7,11 @@ WORKDIR /app/
 RUN apk --update --no-cache add binutils
 
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir kafka-python paho-mqtt pyinstaller pytz
+    pip install --no-cache-dir kafka-python paho-mqtt pyinstaller
 
-COPY wenglor_to_kafka_producer.py /app/
+COPY ../pseudoMain.py /app/
 
-RUN pyinstaller --onefile wenglor_to_kafka_producer.py
+RUN pyinstaller --onefile pseudoMain.py
 
 FROM alpine
 
@@ -20,8 +20,8 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 appuser
 RUN adduser --system --uid 1001 appuser
 
-COPY --from=builder --chown=appuser:appuser /app/dist/wenglor_to_kafka_producer /app/wenglor_to_kafka_producer
+COPY --from=builder --chown=appuser:appuser /app/dist/pseudoMain /app/pseudoMain
 
 USER appuser
 
-ENTRYPOINT ["./wenglor_to_kafka_producer"]
+ENTRYPOINT ["./pseudoMain"]

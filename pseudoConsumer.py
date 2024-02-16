@@ -1,11 +1,10 @@
 from kafka import KafkaConsumer
 import json
-import datetime
-import time
+
 
 # Kafka broker address and topic name
-brokers = '127.0.0.1:9092'
-topic = 'test'
+brokers = os.environ.get('KAFKA_BROKER')
+topic = 'wenglor_to_kafka'
 
 # Create a Kafka consumer
 consumer = KafkaConsumer(topic,

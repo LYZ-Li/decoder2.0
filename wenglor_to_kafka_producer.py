@@ -11,8 +11,8 @@ import socket
 ##################################_____________C++ interface_______________##############################
 
 # Load the shared library
-lib = ctypes.CDLL("EthernetScanner/libEthernetScanner.so")  # Replace "your_library_name.so" with the actual name of your library
-#lib = ctypes.CDLL("libEthernetScanner.so")  
+#lib = ctypes.CDLL("/app/EthernetScanner/libEthernetScanner.so")  # Replace "your_library_name.so" with the actual name of your library
+lib = ctypes.CDLL("/app/libEthernetScanner.so")  
 
 # Define the argument and return types for the function
 lib.EthernetScanner_Connect.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
@@ -131,7 +131,7 @@ class SubscriptionHandler:
         val = json.dumps(data)
         #self.producer.send('wenglor', {'key':int(time.time()*1000), 'value':val})#, 'timestamp':datetime.now(pytz.utc).isoformat()})
         try:
-            self.producer.send('test', {'key':int(time.time() * 1000), 'value':val})#, 'timestamp':datetime.now(pytz.utc).isoformat()})
+            self.producer.send('wenglor_to_kafka', {'key':int(time.time() * 1000), 'value':val})#, 'timestamp':datetime.now(pytz.utc).isoformat()})
             self.producer.flush()
         except Exception as e:
             print(f"Failed to send message: {e}")
@@ -146,7 +146,7 @@ def main():
     try:
         # connect to master
         master = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        master.connect((os.environ.get("pseudo_main_ADDRESS",'127.0.0.1'), os.environ.get("pseudo_main_PORT",9999)))
+        master.connect((os.environ.get('pseudoMain','127.0.0.1'), os.environ.get("pseudo_main_PORT",9999)))
         print('TCP connected')
         # connect to sensor
         pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
@@ -166,7 +166,7 @@ def main():
         while True:
             global trigger 
             trigger = master.recv(1024).decode('utf-8')
-            print(f'received{trigger}')
+            print(f'received trigger: {trigger}')
             if last_trigger == trigger:
                 continue
             elif last_trigger == None and trigger == 'False':
@@ -194,7 +194,8 @@ def main():
                 print('Data acquisition stopped.')
                 write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
     finally:
-        write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
+        if pEthernetScanner!= None:
+            write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
         lib.EthernetScanner_Disconnect(pEthernetScanner)
         print("disconnected")
 if __name__=='__main__':

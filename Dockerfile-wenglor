@@ -1,0 +1,28 @@
+FROM python:3.10-slim as builder
+
+WORKDIR /app/
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends binutils && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir kafka-python paho-mqtt pyinstaller pytz
+
+COPY wenglor_to_kafka_producer.py /app/
+COPY EthernetScanner/ /app/EthernetScanner/
+
+RUN pyinstaller --onefile --add-binary "EthernetScanner/libEthernetScanner.so:." --add-binary "EthernetScanner/libEthernetScanner.so.1:." --add-binary "EthernetScanner/libEthernetScanner.so.1.13.0:." wenglor_to_kafka_producer.py
+
+
+# Define the final base image
+FROM python:3.10-slim
+
+# Set the working directory
+WORKDIR /app/
+
+# Copy the built executable and shared library from the builder stage
+COPY --from=builder --chown=appuser:appuser /app/dist/wenglor_to_kafka_producer /app/wenglor_to_kafka_producer
+
+# Run the application
+CMD ["./wenglor_to_kafka_producer"]
