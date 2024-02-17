@@ -1,6 +1,6 @@
 FROM python:3.10-alpine as builder
-#ENV PYTHONDONTWRITEBYTECODE=1
-#ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app/
 
@@ -11,17 +11,19 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY ../pseudoMain.py /app/
 
-RUN pyinstaller --onefile pseudoMain.py
+ENTRYPOINT ["python", "-u", "/app/pseudoMain.py"]
 
-FROM alpine
+# RUN pyinstaller --onefile pseudoMain.py
 
-WORKDIR /app
+# FROM alpine
 
-RUN addgroup --system --gid 1001 appuser
-RUN adduser --system --uid 1001 appuser
+# WORKDIR /app
 
-COPY --from=builder --chown=appuser:appuser /app/dist/pseudoMain /app/pseudoMain
+# RUN addgroup --system --gid 1001 appuser
+# RUN adduser --system --uid 1001 appuser
 
-USER appuser
+# COPY --from=builder --chown=appuser:appuser /app/dist/pseudoMain /app/pseudoMain
 
-ENTRYPOINT ["./pseudoMain"]
+# USER appuser
+
+# ENTRYPOINT ["./pseudoMain"]

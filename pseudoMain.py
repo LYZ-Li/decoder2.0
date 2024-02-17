@@ -1,5 +1,7 @@
 import sys, time
 from paho.mqtt import client as mqtt_client
+import logging,sys
+logging.basicConfig(stream=sys.stdout)
 
 #broker = 'localhost'
 broker = 'mosquitto'

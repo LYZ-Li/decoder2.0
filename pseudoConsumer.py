@@ -1,21 +1,24 @@
 from kafka import KafkaConsumer
 import json,os
-
+import logging,sys,time
+logging.basicConfig(stream=sys.stdout)
 
 # Kafka broker address and topic name
 brokers = os.environ.get('KAFKA_BROKER')
 #brokers = 'localhost'
 topic = 'wenglor_to_kafka'
 
-# Create a Kafka consumer
-consumer = KafkaConsumer(topic,
-                         bootstrap_servers=brokers,
-                         group_id='my-group',
-                         auto_offset_reset='latest',
-                         enable_auto_commit=False)
+
 
 last_time = 0
 try:
+    time.sleep(5)
+    # Create a Kafka consumer
+    consumer = KafkaConsumer(topic,
+                            bootstrap_servers=brokers,
+                            group_id='my-group',
+                            auto_offset_reset='latest',
+                            enable_auto_commit=False)
     while True:  # Continue running indefinitely
         #for message in consumer:
             # # 解析消息的键和值

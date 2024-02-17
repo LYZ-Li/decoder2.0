@@ -7,7 +7,7 @@ from datetime import datetime
 import threading
 import queue
 import paho.mqtt.client as mqtt
-
+from kafka.errors import NoBrokersAvailable
 import traceback
 
 ##################################_____________C++ interface_______________##############################
@@ -65,11 +65,11 @@ def connect_to_sensor(ip, port, timeout):
         chIP = ip.encode("utf-8")
         chPort = port.encode("utf-8")
         handle = lib.EthernetScanner_Connect(chIP, chPort, timeout)
-        if handle is not None:
+        if handle is None or handle == ctypes.cast(0, ctypes.c_void_p):
+            raise Exception("Failed to connect to sensor")
+        else:
             print("Sensor connected successfully. Handle:", handle)
             return handle
-        else:
-            raise Exception("Connection failed.")
     except Exception as e:
         print("Connection failed. Error:", e)
         return None
@@ -115,7 +115,7 @@ def decoder(pScanner, savePath):
             ival = [value for value in piIntensity]
             wval = [value for value in piSignalWidth]
             Queue.put([timestamp, xval,zval,ival,wval])
-            #saveData(savePath,pdoX, pdoZ, piIntensity, piSignalWidth, )
+            saveData(savePath,pdoX, pdoZ, piIntensity, piSignalWidth, )
     
 #####################################_____________kafka______________############################
 class SubscriptionHandler:
@@ -216,13 +216,18 @@ def mqttListening(mqttbroker,mqttport):
     mqttc.loop_forever()
 
 if __name__=='__main__':
+    time.sleep(5)
     # connect to sensor
     pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
     init_wenglor(pEthernetScanner)
+    try:
     # connect to kafka
-    _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
-                            client_id='wenglor_to_kafka_producer', 
-                            value_serializer=lambda m:json.dumps(m).encode('utf-8'))
+        _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
+                                client_id='wenglor_to_kafka_producer', 
+                                value_serializer=lambda m:json.dumps(m).encode('utf-8'))
+    except NoBrokersAvailable:
+        print("No brokers available. Retrying...")
+        time.sleep(5)
     producer = SubscriptionHandler(_producer)
 
     folder_name = "profileData"

@@ -56,6 +56,11 @@ services:
       - local_network.env
     networks:
       - testDocker-net
+    volumes:
+      - ./dockervolum:/app/profileData
+    depends_on:
+      - kafka
+      - mosquitto
   pseudo_main:
     build:
       context: .
@@ -67,6 +72,8 @@ services:
       - local_network.env
     networks:
       - testDocker-net
+    depends_on:
+      - mosquitto
   pseudo_consumer:
     build:
       context: .
@@ -78,6 +85,8 @@ services:
       - local_network.env
     networks:
       - testDocker-net
+    depends_on:
+      - kafka
 
 networks:
   testDocker-net:
