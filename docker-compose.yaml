@@ -38,6 +38,8 @@ services:
       - ALLOW_ANONYMOUS=true
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    # ports:
+    #   - "1883:1883"
     env_file:
       - environment.env
     #  - ../secrets.env
@@ -52,7 +54,7 @@ services:
     restart: 'always'
     env_file:
       - environment.env
-    #  - ../secrets.env
+      - secrets.env
       - local_network.env
     networks:
       - testDocker-net
@@ -61,33 +63,4 @@ services:
     depends_on:
       - kafka
       - mosquitto
-  pseudo_main:
-    build:
-      context: .
-      #context: docker/.
-      dockerfile: Dockerfile-pseudoMain
-    #restart: 'always'
-    env_file:
-      - environment.env
-      - local_network.env
-    networks:
-      - testDocker-net
-    depends_on:
-      - mosquitto
-  pseudo_consumer:
-    build:
-      context: .
-      #context: docker/.
-      dockerfile: Dockerfile-pseudoConsumer
-    restart: 'always'
-    env_file:
-      - environment.env
-      - local_network.env
-    networks:
-      - testDocker-net
-    depends_on:
-      - kafka
 
-networks:
-  testDocker-net:
-    driver: bridge

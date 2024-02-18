@@ -1,0 +1,129 @@
+<script src="paho.javascript-1.0.3/paho-mqtt-min.js" type="text/javascript"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+
+
+    <script type="text/javascript" src="{% static 'js/require.js' %}"></script>
+    <script>
+        requirejs.config({
+            baseUrl: "{% static 'js/src/' %}",
+        });
+    </script>
+    <script>
+        require(['Potree'], function(Potree) {
+            var viewer = new Potree.Viewer(document.getElementById('potree-container'));
+            
+            console.log('Potree module loaded successfully');
+        });
+    </script>
+
+
+    <script>
+        // 在页面加载完成后执行初始化 Potree 操作
+        document.addEventListener('DOMContentLoaded', function () {
+            // 创建 Potree Viewer 实例并指定要显示点云数据的容器
+            var viewer = new Potree.Viewer(document.getElementById('potree-container'));
+
+            // 设置点云数据的基本路径
+            var pointCloudPath = "{% static 'pointcloud/data' %}";
+
+
+            // 创建 Batched Point Cloud Loader
+            var loader = new Potree.BatchLoader(pointCloudPath);
+
+            // 将所有分块加载到场景中
+            loader.use(node => {
+                viewer.scene.addPointCloud(node);
+            });
+
+            // 开始加载数据
+            loader.load();
+
+            console.log('Potree module loaded successfully');
+        });
+    </script>
+
+
+
+
+
+
+
+    {% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scanning Control Panel</title>
+    <script type="text/javascript" src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/proj4.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/paho-mqtt-min.js' %}"></script>
+
+    <script type="text/javascript" src="{% static 'js/BinaryHeap.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/tween.umd.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/laslaz.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/shaders.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/potree/potree.js' %}"></script>
+    
+    <link rel="stylesheet" href="{% static 'js/potree/potree.css' %}">
+
+    
+</head>
+<body>
+    <h1>Service Control Panel</h1>
+    <button id="start-btn">Start</button>
+    <button id="stop-btn">Stop</button>
+
+    <div id="potree-container" style="width: 800px; height: 600px;"></div>
+
+
+    <script>
+        // 创建 Potree Viewer 实例
+        const viewer = new Potree.Viewer(document.body);
+
+        // 加载点云数据
+        Potree.loadPointCloud('{% static "pointcloud/cloud.js" %}', 'PointCloud', e => {
+            const pointcloud = e.pointcloud;
+            viewer.scene.addPointCloud(pointcloud);
+            // 自适应屏幕并触发渲染
+            viewer.fitToScreen();
+        });
+    </script>
+
+
+
+    <script>
+        // MQTT Broker connection info
+        var mqttBrokerUrl = "localhost";  // MQTT Broker address
+        var mqttClientId = "web_client_" + new Date().getTime();  // client ID
+        var mqttTopic = "/python/mqtt";  // topic
+
+        var mqttClient = new Paho.MQTT.Client(mqttBrokerUrl, Number(9001),mqttClientId);
+
+        // connect to MQTT Broker
+        mqttClient.connect({
+            onSuccess: function() {
+                console.log("Connected to MQTT Broker");
+            },
+            onFailure: function(err) {
+                console.error("Failed to connect to MQTT Broker: " + err.errorMessage);
+            }
+        });
+
+        $('#start-btn').click(function() {
+            sendMessage("True");
+        });
+
+        $('#stop-btn').click(function() {
+            sendMessage("False");
+        });
+
+        function sendMessage(trigger) {
+            var message = new Paho.MQTT.Message(trigger);
+            message.destinationName = mqttTopic;
+            mqttClient.send(message);
+            console.log("Message sent: " + trigger);
+        }
+
+    </script>
+</body>
+</html>

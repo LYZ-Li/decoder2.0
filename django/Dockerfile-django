@@ -1,0 +1,33 @@
+FROM python:3.10-slim
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y libpq-dev libc-dev build-essential && apt-get clean -y
+
+
+RUN groupadd -r app_user && useradd --no-log-init -r -g app_user app_user
+
+WORKDIR /app/
+
+ENV PYTHONPATH "${PYTHONPATH}:/app"
+
+RUN mkdir -p /static
+
+RUN install -d -m 0775 -o app_user -g app_user /static
+RUN install -d -m 0775 -o app_user -g app_user /media
+RUN install -d -m 0775 -o app_user -g app_user /app
+
+
+COPY --chown=app_user:app_user requirements.txt /app/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir wheel && \
+	pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir uvicorn[standard] && \
+    pip install --no-cache-dir psycopg2-binary
+
+COPY --chown=app_user:app_user . /app/
+
+USER app_user:app_user
+RUN mv docker-entrypoint.sh /app/docker-entrypoint.sh && \
+	chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]

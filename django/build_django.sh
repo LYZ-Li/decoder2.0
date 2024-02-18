@@ -1,0 +1,1 @@
+docker build -t wenglor_to_SQL/backend --platform=linux/amd64 -f Dockerfile-django .

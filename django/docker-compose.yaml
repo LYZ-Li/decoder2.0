@@ -1,0 +1,104 @@
+version: "3"
+
+services:
+  postgres:
+    image: postgres
+    env_file:
+      - ../environment.env
+      - ../secrets.env
+      - ../local_network.env
+    restart: 'always'
+    volumes:
+      - testDocker_dev_db_volume:/var/lib/postgresql/data
+    networks:
+      - testDocker-net
+    ports:
+      - "54321:5432"
+  redis:
+    image: redis
+    restart: 'always'
+    command:
+      - /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./config/redis:/usr/local/etc/redis
+      - testDocker_dev_redis_volume:/data
+    # ports:
+    #   - "55001:55001"
+    networks:
+      - testDocker-net
+  backend:
+    image: wenglor_to_SQL/backend
+    env_file:
+      - ../environment.env
+      - ../secrets.env
+      - ../local_network.env
+    restart: 'always'
+    volumes:
+      - testDocker_static_volume:/static
+      - testDocker_media_volume:/media
+    networks:
+      - testDocker-net
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+  
+  backend_channels_event_creator:
+    image: wenglor_to_SQL/backend
+    entrypoint: ['python', 'manage.py', 'channels_event_creator']
+    env_file:
+      - ../environment.env
+      - ../secrets.env
+      - ../local_network.env
+    restart: 'always'
+    volumes:
+      - testDocker_static_volume:/static
+      - testDocker_media_volume:/media
+    networks:
+      - testDocker-net
+    depends_on:
+      - postgres
+      - redis
+  backend_kafka_to_channels:
+    image: wenglor_to_SQL/backend
+    entrypoint: ['python', 'manage.py', 'kafka_to_channels']
+    env_file:
+      - ../environment.env
+      - ../secrets.env
+      - ../local_network.env
+    restart: 'always'
+    volumes:
+      - testDocker_static_volume:/static
+      - testDocker_media_volume:/media
+    networks:
+      - testDocker-net
+    depends_on:
+      - postgres
+      - redis
+  backend_kafka_to_db:
+    image: wenglor_to_SQL/backend
+    env_file:
+      - ../environment.env
+      - ../secrets.env
+      - ../local_network.env
+    restart: 'always'
+    volumes:
+      - testDocker_static_volume:/static
+      - testDocker_media_volume:/media
+    networks:
+      - testDocker-net
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  testDocker_dev_db_volume:
+  testDocker_dev_redis_volume:
+  testDocker_static_volume:
+  testDocker_media_volume:
+
+networks:
+  testDocker-net:
+    external:
+      name: testDocker-net

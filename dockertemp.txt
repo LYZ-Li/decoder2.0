@@ -1,0 +1,28 @@
+  pseudo_main:
+    build:
+      context: .
+      #context: docker/.
+      dockerfile: Dockerfile-pseudoMain
+    #restart: 'always'
+    env_file:
+      - environment.env
+      - local_network.env
+    networks:
+      - testDocker-net
+    depends_on:
+      - kafka
+      - mosquitto
+  pseudo_consumer:
+    build:
+      context: .
+      #context: docker/.
+      dockerfile: Dockerfile-pseudoConsumer
+    restart: 'always'
+    env_file:
+      - environment.env
+      - local_network.env
+    networks:
+      - testDocker-net
+    depends_on:
+      - kafka
+      - mosquitto
