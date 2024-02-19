@@ -2,7 +2,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y libpq-dev libc-dev build-essential && apt-get clean -y
+RUN apt-get update && apt-get install -y libpq-dev libc-dev build-essential gettext && apt-get clean -y
 
 
 RUN groupadd -r app_user && useradd --no-log-init -r -g app_user app_user
@@ -28,6 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY --chown=app_user:app_user . /app/
 
 USER app_user:app_user
-RUN mv docker-entrypoint.sh /app/docker-entrypoint.sh && \
-	chmod +x /app/docker-entrypoint.sh
+#RUN mv docker-entrypoint.sh /app/docker-entrypoint.sh && \
+#	chmod +x /app/docker-entrypoint.sh
+
+RUN chmod +x /app/docker-entrypoint.sh
 ENTRYPOINT ["./docker-entrypoint.sh"]

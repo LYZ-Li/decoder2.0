@@ -25,4 +25,6 @@ WORKDIR /app/
 COPY --from=builder --chown=appuser:appuser /app/dist/wenglor_to_kafka_producer /app/wenglor_to_kafka_producer
 
 # Run the application
+RUN chmod +x /app/wenglor_to_kafka_producer
+
 CMD ["./wenglor_to_kafka_producer"]

@@ -27,7 +27,7 @@ services:
     networks:
       - testDocker-net
   backend:
-    image: wenglor_to_SQL/backend
+    image: wenglor_to_sql/backend
     env_file:
       - ../environment.env
       - ../secrets.env
@@ -44,40 +44,9 @@ services:
     ports:
       - "8000:8000"
   
-  backend_channels_event_creator:
-    image: wenglor_to_SQL/backend
-    entrypoint: ['python', 'manage.py', 'channels_event_creator']
-    env_file:
-      - ../environment.env
-      - ../secrets.env
-      - ../local_network.env
-    restart: 'always'
-    volumes:
-      - testDocker_static_volume:/static
-      - testDocker_media_volume:/media
-    networks:
-      - testDocker-net
-    depends_on:
-      - postgres
-      - redis
-  backend_kafka_to_channels:
-    image: wenglor_to_SQL/backend
-    entrypoint: ['python', 'manage.py', 'kafka_to_channels']
-    env_file:
-      - ../environment.env
-      - ../secrets.env
-      - ../local_network.env
-    restart: 'always'
-    volumes:
-      - testDocker_static_volume:/static
-      - testDocker_media_volume:/media
-    networks:
-      - testDocker-net
-    depends_on:
-      - postgres
-      - redis
   backend_kafka_to_db:
-    image: wenglor_to_SQL/backend
+    image: wenglor_to_sql/backend
+    entrypoint: [ 'python', 'manage.py', 'kafka_to_db' ]
     env_file:
       - ../environment.env
       - ../secrets.env
@@ -91,6 +60,13 @@ services:
     depends_on:
       - postgres
       - redis
+  adminer:
+    image: adminer
+    restart: always
+    networks:
+      - testDocker-net
+    ports:
+      - 8080:8080
 
 volumes:
   testDocker_dev_db_volume:
@@ -101,4 +77,4 @@ volumes:
 networks:
   testDocker-net:
     external:
-      name: testDocker-net
+      name: decoder_v2_testDocker-net

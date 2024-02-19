@@ -1,4 +1,20 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
+
+class WenglorData(models.Model):
+    testID = models.CharField(max_length=100)
+    starttime = models.CharField(max_length=100)
+    stoptime = models.CharField(max_length=100)
+    timestamp = models.BigIntegerField()
+    X = ArrayField(models.FloatField())
+    Z = ArrayField(models.FloatField())
+    I = ArrayField(models.IntegerField())
+    
+class WenglorTextValue(models.Model):
+	timestamp=models.DateTimeField()
+	value=models.CharField(max_length=255)
+
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.forms import ValidationError
 

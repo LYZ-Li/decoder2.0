@@ -4,7 +4,7 @@ import logging,sys,time
 logging.basicConfig(stream=sys.stdout)
 
 # Kafka broker address and topic name
-brokers = os.environ.get('KAFKA_BROKER')
+brokers = "localhost"#os.environ.get('KAFKA_BROKER')
 #brokers = 'localhost'
 topic = 'wenglor_to_kafka'
 

@@ -16,8 +16,9 @@ from django.core.asgi import get_asgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'profileSensor.settings')
 os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 
-application = get_asgi_application()
+#application = get_asgi_application()
 
+django_asgi_app = get_asgi_application()
 from profileSensor import routing
 
 application = ProtocolTypeRouter({

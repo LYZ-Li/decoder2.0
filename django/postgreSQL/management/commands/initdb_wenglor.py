@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from machine_management.models import Machine, MachineParameter
+from postgreSQL.models import Machine, MachineParameter
 
 configured_nodes = [
 	{'id': 1, 'machine_id': 2, 'name': 'X', 'display_name': 'Position X', 'unit': 'mm', 'min_value': 0.0, 'max_value': 10000.0, 'role': 'x_coordinate'},
@@ -18,11 +18,11 @@ class Command(BaseCommand):
 	def set_machine_dict(self):
 		self.parameter_map={f"{parameter.machine.topic}__{parameter.name}":parameter for parameter in MachineParameter.objects.all()}
 	def handle(self, *args, **options):
-		kuka=Machine.objects.get(name='Kuka Roboter')
+		wenglor=Machine.objects.get(name='Kuka Roboter')
 		MachineParameter.objects.create(
-			name='connected', display_name='connected', machine_id=kuka.id,
+			name='connected', display_name='connected', machine_id=wenglor.id,
 		)
 		for configured_node in configured_nodes:
 			MachineParameter.objects.create(
-				name=configured_node['name'], display_name=configured_node['display_name'], unit=configured_node['unit'], min_value=configured_node['min_value'], max_value=configured_node['max_value'], role=configured_node['role'], machine_id=kuka.id,
+				name=configured_node['name'], display_name=configured_node['display_name'], unit=configured_node['unit'], min_value=configured_node['min_value'], max_value=configured_node['max_value'], role=configured_node['role'], machine_id=wenglor.id,
 			)

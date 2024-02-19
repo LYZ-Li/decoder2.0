@@ -2,6 +2,7 @@
 
 #/bin/bash -c -- "while true; do sleep 30; done;"
 python manage.py collectstatic --noinput
+python manage.py makemigrations --noinput
 python manage.py migrate --noinput
 python manage.py compilemessages -v 0
 

@@ -9,7 +9,9 @@ import queue
 import paho.mqtt.client as mqtt
 from kafka.errors import NoBrokersAvailable
 import traceback
-
+import logging
+logging.basicConfig(format='%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s',
+                    level=logging.INFO)
 ##################################_____________C++ interface_______________##############################
 
 # Load the shared library
@@ -68,10 +70,10 @@ def connect_to_sensor(ip, port, timeout):
         if handle is None or handle == ctypes.cast(0, ctypes.c_void_p):
             raise Exception("Failed to connect to sensor")
         else:
-            print("Sensor connected successfully. Handle:", handle)
+            logging.info("Sensor connected successfully. Handle:", handle)
             return handle
     except Exception as e:
-        print("Connection failed. Error:", e)
+        logging.warning("Connection failed. Error:", e)
         return None
 
 # def initial sensor
@@ -109,12 +111,12 @@ def decoder(pScanner, savePath):
         if result == -1:
             continue
         elif result > 0:
-            timestamp = int(time.time() * 1000)
+            timestamp = time.time_ns()
             xval = [value for value in pdoX]
             zval = [value for value in pdoZ]
             ival = [value for value in piIntensity]
-            wval = [value for value in piSignalWidth]
-            Queue.put([timestamp, xval,zval,ival,wval])
+            #wval = [value for value in piSignalWidth]
+            Queue.put([timestamp, xval,zval,ival])
             saveData(savePath,pdoX, pdoZ, piIntensity, piSignalWidth, )
     
 #####################################_____________kafka______________############################
@@ -122,26 +124,33 @@ class SubscriptionHandler:
     def __init__(self, producer):
         self.producer=producer
 
-    def pack_send(self, t,x,z,i,w):
+    def pack_send(self, t,x,z,i):
         # xval = [value for value in x]
         # zval = [value for value in z]
         # ival = [value for value in i]
         # wval = [value for value in w]
-        data = {'x': x, 'z': z, 'i': i, 'w': w}
-        val = json.dumps(data)
-        key_bytes = str(t).encode()
-        #self.producer.send('wenglor', {'key':int(time.time()*1000), 'value':val})#, 'timestamp':datetime.now(pytz.utc).isoformat()})
+        data = {'state':'scanning','unix_ns_timestamp':t,'X': x, 'Z': z, 'I': i}
+        
         try:
-            self.producer.send('wenglor_to_kafka', key=key_bytes, value=val)#, timestamp= datetime.now(pytz.utc).isoformat())
+            #self.producer.send('wenglor_to_kafka', key=key_bytes, value=val)#, timestamp= datetime.now(pytz.utc).isoformat())
+            self.producer.send('wenglor_to_kafka', json.dumps(data).encode('utf-8'))
             self.producer.flush()
         except Exception as e:
-            print(f"Failed to send message: {e}")
+            logging.warning(f"Failed to send message: {e}")
             traceback.print_exc()
 def sendKafka(producer):
     while trigger== 'True':
         if not Queue.empty():
-            t,x,z,i,w = Queue.get()
-            producer.pack_send(t,x,z,i,w)
+            t,x,z,i = Queue.get()
+            producer.pack_send(t,x,z,i)
+def stateUpdate(producer,msg):
+    data = {'state': msg,
+            'unix_ns_timestamp': time.time_ns(),
+    }
+    try:
+        producer.send('wenglor_to_kafka', json.dumps(data).encode('utf-8'))
+    except Exception as e:
+            logging.warning(f"Failed to send state update message: {e}")
 
 ########################################__________main____________#################################
 ## Mosquitto 
@@ -154,12 +163,12 @@ thread_stop = threading.Event()
 
 #define connection callback
 def on_connect(client, userdata, flags, reason_code, properties):
-    print(f"MQTT Connected with result code {reason_code}")
+    logging.info(f"MQTT Connected with result code {reason_code}")
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
     client.subscribe("/python/mqtt")
     
-def on_disconnect(client, userdata,rc):
+def on_disconnect(client, userdata,rc,properties=None, packet=None):
     client.reconnect()
 
 oldtrigger = None
@@ -170,8 +179,8 @@ def on_message(client, userdata, message):
     global threads 
 
     trigger = message.payload.decode('utf-8')
-    print('')
-    print('Received trgger:', trigger)
+    #print('')
+    logging.info('Received trgger:', trigger)
     if oldtrigger == trigger:
         return
     elif oldtrigger == None and trigger == 'False':
@@ -181,10 +190,12 @@ def on_message(client, userdata, message):
         oldtrigger = trigger
 
     if trigger == "True":
-        print('Starting data acquisition...')
+        logging.info('Starting data acquisition...')
         # filename
         current_time = datetime.now().strftime("%Y%m%d%H%M")
         savePath = f"{folder_name}/ScanData{current_time}.txt"
+
+        stateUpdate(_producer,'start')
 
         thread_stop.clear() 
         thread_decoder = threading.Thread(target=decoder,args=(pEthernetScanner, savePath, ))
@@ -195,12 +206,13 @@ def on_message(client, userdata, message):
 
     elif trigger == "False":
         oldtrigger = None
-        print('Stopping data acquisition...')
+        logging.info('Stopping data acquisition...')
         thread_stop.set()
         for thread in threads:
             if thread in locals() and thread.is_alive():
                 thread.join()
-        print('Data acquisition stopped.')
+        logging.info('Data acquisition stopped.')
+        stateUpdate(_producer,'stop')
         write_to_wenglor(pEthernetScanner,b'SetAcquisitionStop')
 
 def mqttListening(mqttbroker,mqttport):
@@ -216,17 +228,18 @@ def mqttListening(mqttbroker,mqttport):
     mqttc.loop_forever()
 
 if __name__=='__main__':
-    time.sleep(5)
+    for i in range(5,-1,-1):
+        logging.info(f"waiting for kafka sever..{i}")
     # connect to sensor
     pEthernetScanner = connect_to_sensor(os.environ.get("WENGLOR_IP","192.168.100.250"),os.environ.get("WENGLOR_PORT", "32001"), 0)
     init_wenglor(pEthernetScanner)
     try:
     # connect to kafka
         _producer=KafkaProducer(bootstrap_servers=os.environ.get('KAFKA_BROKER','127.0.0.1:9092'), 
-                                client_id='wenglor_to_kafka_producer', 
-                                value_serializer=lambda m:json.dumps(m).encode('utf-8'))
+                                client_id='wenglor_to_kafka_producer', )
+                                # value_serializer=lambda m:json.dumps(m).encode('utf-8'))
     except NoBrokersAvailable:
-        print("No brokers available. Retrying...")
+        logging.warning("No brokers available. Retrying...")
         time.sleep(5)
     producer = SubscriptionHandler(_producer)
 
